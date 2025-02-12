@@ -2,58 +2,120 @@ name: Test and Coverage
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+
+  workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: 'Enable debug mode'
+        required: false
+        type: boolean
+        default: false
+
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+        default: 'all'
+
+      os_matrix:
+        description: 'Run tests on multiple OS'
+        required: false
+        type: boolean
+        default: false
+
+      coverage:
+        description: 'Generate coverage report'
+        required: false
+        type: boolean
+        default: true
+
+      shellcheck:
+        description: 'Run ShellCheck analysis'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # Latest version of checkout action
+      - uses: actions/checkout@v4.1.1
+
+      - name: Set default values for auto-trigger
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "DEFAULT_DEBUG_MODE=false" >> $GITHUB_ENV
+          echo "DEFAULT_TEST_TYPE=all" >> $GITHUB_ENV
+          echo "DEFAULT_OS_MATRIX=true" >> $GITHUB_ENV
+          echo "DEFAULT_COVERAGE=true" >> $GITHUB_ENV
+          echo "DEFAULT_SHELLCHECK=true" >> $GITHUB_ENV
+
+      - name: Set input values
+        run: |
+          echo "USE_DEBUG_MODE=${{ github.event_name == 'workflow_dispatch' && inputs.debug_mode || env.DEFAULT_DEBUG_MODE }}" >> $GITHUB_ENV
+          echo "USE_TEST_TYPE=${{ github.event_name == 'workflow_dispatch' && inputs.test_type || env.DEFAULT_TEST_TYPE }}" >> $GITHUB_ENV
+          echo "USE_OS_MATRIX=${{ github.event_name == 'workflow_dispatch' && inputs.os_matrix || env.DEFAULT_OS_MATRIX }}" >> $GITHUB_ENV
+          echo "USE_COVERAGE=${{ github.event_name == 'workflow_dispatch' && inputs.coverage || env.DEFAULT_COVERAGE }}" >> $GITHUB_ENV
+          echo "USE_SHELLCHECK=${{ github.event_name == 'workflow_dispatch' && inputs.shellcheck || env.DEFAULT_SHELLCHECK }}" >> $GITHUB_ENV
 
       - name: Set up environment
         run: |
           sudo apt-get update
           sudo apt-get install -y bats shellcheck kcov netcat-openbsd
 
-          # Install bats-support and bats-assert
           git clone https://github.com/bats-core/bats-support.git /tmp/bats-support
           git clone https://github.com/bats-core/bats-assert.git /tmp/bats-assert
           sudo mkdir -p /usr/local/lib/bats/
           sudo mv /tmp/bats-support /usr/local/lib/bats/
           sudo mv /tmp/bats-assert /usr/local/lib/bats/
 
-          # Set up Docker
           docker --version
           docker compose version
 
       - name: Run ShellCheck
+        if: ${{ env.USE_SHELLCHECK == 'true' }}
         run: |
           shellcheck libs/*.sh *.sh
 
       - name: Run Unit Tests
+        if: ${{ env.USE_TEST_TYPE == 'all' || env.USE_TEST_TYPE == 'unit' }}
         run: |
           bats tests/unit/*.bats
         env:
           TERM: xterm-256color
+          DEBUG: ${{ env.USE_DEBUG_MODE }}
 
       - name: Run Integration Tests
+        if: ${{ env.USE_TEST_TYPE == 'all' || env.USE_TEST_TYPE == 'integration' }}
         run: |
           bats tests/integration/*.bats
         env:
           TERM: xterm-256color
+          DEBUG: ${{ env.USE_DEBUG_MODE }}
 
       - name: Generate Coverage Report
+        if: ${{ env.USE_COVERAGE == 'true' }}
         run: |
           kcov --include-pattern=.sh \
                --exclude-pattern=.bats,.env.example,tests/ \
                coverage/ \
                bats tests/unit/*.bats tests/integration/*.bats
 
+      # Latest version of codecov action
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v4
+        if: ${{ env.USE_COVERAGE == 'true' }}
+        uses: codecov/codecov-action@v4.0.1
         with:
           files: ./coverage/*/coverage.xml
           flags: unittests
@@ -61,23 +123,25 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
+      # Latest version of upload-artifact action
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
+        if: ${{ env.USE_COVERAGE == 'true' }}
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: code-coverage-report
           path: coverage/
           retention-days: 90
 
-  # Job for testing on different OS
   test-matrix:
     needs: test
+    if: ${{ env.USE_OS_MATRIX == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
 
       - name: Set up environment (Unix)
         if: matrix.os != 'windows-latest'
@@ -95,21 +159,36 @@ jobs:
           choco install bats shellcheck netcat
         shell: pwsh
 
-      - name: Run Basic Tests
+      - name: Run Tests
         run: |
           bats tests/unit/*.bats
         env:
           TERM: xterm-256color
+          DEBUG: ${{ env.USE_DEBUG_MODE }}
 
-  # Job for creating test summary
   test-summary:
-    needs: [test, test-matrix]
+    needs: [test]
+    if: always()
     runs-on: ubuntu-latest
 
     steps:
       - name: Create Test Summary
         run: |
           echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Main tests completed successfully" >> $GITHUB_STEP_SUMMARY
-          echo "✅ OS Matrix tests completed successfully" >> $GITHUB_STEP_SUMMARY
-          echo "📊 Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Trigger: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Configuration:" >> $GITHUB_STEP_SUMMARY
+          echo "- Debug Mode: ${{ env.USE_DEBUG_MODE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Type: ${{ env.USE_TEST_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- OS Matrix: ${{ env.USE_OS_MATRIX }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage: ${{ env.USE_COVERAGE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ShellCheck: ${{ env.USE_SHELLCHECK }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Main tests completed" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.USE_OS_MATRIX }}" = "true" ]; then
+            echo "✅ OS Matrix tests completed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ env.USE_COVERAGE }}" = "true" ]; then
+            echo "📊 Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY
+          fi
