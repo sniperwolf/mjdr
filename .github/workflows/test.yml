@@ -120,7 +120,7 @@ jobs:
           mkdir -p reports/shellcheck
           shellcheck -x -f json libs/*.sh *.sh > reports/shellcheck/report.json || true
 
-          if [ -s reports/shellcheck/report.json ]; then
+          if [ -s reports/shellcheck/report.json ] && [ "$(cat reports/shellcheck/report.json)" != "[]" ]; then
             echo "Found ShellCheck issues:" >> reports/shellcheck/report.txt
             cat reports/shellcheck/report.json | jq -r '.[] | "File: \(.file)\nLine \(.line): \(.message)\nSeverity: \(.level)\nCode: \(.code)\n"' >> reports/shellcheck/report.txt
             echo "## ShellCheck Results" >> $GITHUB_STEP_SUMMARY
