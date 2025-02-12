@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "${BATS_HELPER_PATH}/test_helper.bats"
+load '../helpers/test_helper'
 
 setup() {
     source "${BATS_TEST_DIRNAME}/../../libs/colors.sh"
