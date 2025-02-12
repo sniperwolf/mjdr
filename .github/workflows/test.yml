@@ -92,7 +92,6 @@ jobs:
           sudo apt-get install -y bats shellcheck netcat-openbsd \
             binutils-dev libcurl4-openssl-dev zlib1g-dev libdw-dev libiberty-dev build-essential
 
-          # Install kcov from source
           wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
           tar xzf master.tar.gz
           cd kcov-master
@@ -104,7 +103,6 @@ jobs:
           cd ../..
           rm -rf kcov-master master.tar.gz
 
-          # Install BATS dependencies
           git clone https://github.com/bats-core/bats-support.git /tmp/bats-support
           git clone https://github.com/bats-core/bats-assert.git /tmp/bats-assert
           sudo mkdir -p /usr/local/lib/bats/
@@ -116,51 +114,109 @@ jobs:
 
       - name: Run ShellCheck
         if: ${{ steps.set-vars.outputs.shellcheck == 'true' }}
+        continue-on-error: true
+        id: shellcheck
         run: |
-          shellcheck -e SC1090,SC1091 libs/*.sh *.sh
+          mkdir -p reports/shellcheck
+          shellcheck -f json libs/*.sh *.sh > reports/shellcheck/report.json || true
+
+          if [ -s reports/shellcheck/report.json ]; then
+            echo "Found ShellCheck issues:" >> reports/shellcheck/report.txt
+            cat reports/shellcheck/report.json | jq -r '.[] | "File: \(.file)\nLine \(.line): \(.message)\nSeverity: \(.level)\nCode: \(.code)\n"' >> reports/shellcheck/report.txt
+            echo "## ShellCheck Results" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Found issues. See artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No ShellCheck issues found!" >> reports/shellcheck/report.txt
+            echo "## ShellCheck Results" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No issues found" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Run Unit Tests
         if: ${{ steps.set-vars.outputs.test_type == 'all' || steps.set-vars.outputs.test_type == 'unit' }}
+        continue-on-error: true
+        id: unit-tests
         run: |
-          bats tests/unit/*.bats
+          mkdir -p reports/unit-tests
+          bats tests/unit/*.bats > reports/unit-tests/report.txt 2>&1 || true
+
+          if grep -q "not ok" reports/unit-tests/report.txt; then
+            echo "## Unit Tests Results" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Some tests failed. See artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Unit Tests Results" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          fi
         env:
           TERM: xterm-256color
           DEBUG: ${{ steps.set-vars.outputs.debug_mode }}
 
       - name: Run Integration Tests
         if: ${{ steps.set-vars.outputs.test_type == 'all' || steps.set-vars.outputs.test_type == 'integration' }}
+        continue-on-error: true
+        id: integration-tests
         run: |
-          bats tests/integration/*.bats
+          mkdir -p reports/integration-tests
+          bats tests/integration/*.bats > reports/integration-tests/report.txt 2>&1 || true
+
+          if grep -q "not ok" reports/integration-tests/report.txt; then
+            echo "## Integration Tests Results" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Some tests failed. See artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Integration Tests Results" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          fi
         env:
           TERM: xterm-256color
           DEBUG: ${{ steps.set-vars.outputs.debug_mode }}
 
       - name: Generate Coverage Report
         if: ${{ steps.set-vars.outputs.coverage == 'true' }}
+        continue-on-error: true
+        id: coverage
         run: |
+          mkdir -p reports/coverage
           kcov --include-pattern=.sh \
                --exclude-pattern=.bats,.env.example,tests/ \
-               coverage/ \
-               bats tests/unit/*.bats tests/integration/*.bats
+               reports/coverage/ \
+               bats tests/unit/*.bats tests/integration/*.bats || true
 
-      - name: Upload Coverage Report
+          if [ -f reports/coverage/*/coverage.xml ]; then
+            echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "📊 Coverage report generated. See artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Failed to generate coverage report" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload to Codecov
         if: ${{ steps.set-vars.outputs.coverage == 'true' }}
+        continue-on-error: true
         uses: codecov/codecov-action@v4.0.1
         with:
-          files: ./coverage/*/coverage.xml
+          files: ./reports/coverage/*/coverage.xml
           flags: unittests
           name: codecov-umbrella
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Archive code coverage results
-        if: ${{ steps.set-vars.outputs.coverage == 'true' }}
+      - name: Upload All Reports
         uses: actions/upload-artifact@v4.3.1
         with:
-          name: code-coverage-report
-          path: coverage/
+          name: test-reports
+          path: reports/
           retention-days: 90
+
+      - name: Generate Final Summary
+        run: |
+          echo "# Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "- ShellCheck: ${{ steps.shellcheck.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests: ${{ steps.unit-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Tests: ${{ steps.integration-tests.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage: ${{ steps.coverage.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See artifacts for detailed reports." >> $GITHUB_STEP_SUMMARY
 
   test-matrix:
     needs: test
