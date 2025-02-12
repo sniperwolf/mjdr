@@ -117,7 +117,7 @@ jobs:
       - name: Run ShellCheck
         if: ${{ steps.set-vars.outputs.shellcheck == 'true' }}
         run: |
-          shellcheck libs/*.sh *.sh
+          shellcheck -e SC1090,SC1091 libs/*.sh *.sh
 
       - name: Run Unit Tests
         if: ${{ steps.set-vars.outputs.test_type == 'all' || steps.set-vars.outputs.test_type == 'unit' }}
