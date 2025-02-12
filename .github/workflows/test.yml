@@ -142,9 +142,15 @@ jobs:
         if: ${{ steps.set-vars.outputs.test_type == 'all' || steps.set-vars.outputs.test_type == 'unit' }}
         continue-on-error: true
         id: unit-tests
+        working-directory: ${{ github.workspace }}
         run: |
           mkdir -p reports/unit-tests
-          bats tests/unit/*.bats > reports/unit-tests/report.txt 2>&1 || true
+          BATS_LIB_PATH="/usr/local/lib/bats" \
+          BATS_HELPER_PATH="${PWD}/tests/helpers" \
+          BATS_TEST_DIRNAME="${PWD}/tests/unit" \
+          bats --timing --verbose-run \
+               --recursive \
+               tests/unit > reports/unit-tests/report.txt 2>&1 || true
 
           if grep -q "not ok" reports/unit-tests/report.txt; then
             echo "## Unit Tests Results" >> $GITHUB_STEP_SUMMARY
