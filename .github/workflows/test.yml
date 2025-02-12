@@ -131,6 +131,13 @@ jobs:
             echo "✅ No issues found" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Check test structure
+        run: |
+          echo "Test directory structure:"
+          ls -R tests/
+          echo "Content of helpers directory:"
+          ls -la tests/helpers/
+
       - name: Run Unit Tests
         if: ${{ steps.set-vars.outputs.test_type == 'all' || steps.set-vars.outputs.test_type == 'unit' }}
         continue-on-error: true
