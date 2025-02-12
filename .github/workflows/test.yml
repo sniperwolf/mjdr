@@ -83,7 +83,19 @@ jobs:
             echo "shellcheck=$DEFAULT_SHELLCHECK" >> $GITHUB_OUTPUT
           fi
 
-      # ... (resto degli step del job test invariati, usando steps.set-vars.outputs invece di env) ...
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats shellcheck kcov netcat-openbsd
+
+          git clone https://github.com/bats-core/bats-support.git /tmp/bats-support
+          git clone https://github.com/bats-core/bats-assert.git /tmp/bats-assert
+          sudo mkdir -p /usr/local/lib/bats/
+          sudo mv /tmp/bats-support /usr/local/lib/bats/
+          sudo mv /tmp/bats-assert /usr/local/lib/bats/
+
+          docker --version
+          docker compose version
 
       - name: Run ShellCheck
         if: ${{ steps.set-vars.outputs.shellcheck == 'true' }}
