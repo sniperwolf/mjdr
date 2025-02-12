@@ -17,8 +17,6 @@ fi
 # Filesystem configuration defaults
 readonly DEFAULT_PERMISSIONS="755"
 readonly MIN_DISK_SPACE_MB=10240  # 10GB in MB
-readonly BACKUP_DIR="backups"
-readonly MAX_BACKUP_AGE_DAYS=30
 readonly TEMP_PREFIX="jellyfin_tmp_"
 
 # Function to check available disk space
@@ -114,67 +112,6 @@ create_directory_structure() {
     return 0
 }
 
-# Function to backup directory
-# Args: $1 - source directory, $2 - backup name
-backup_directory() {
-    local source_dir="$1"
-    local backup_name="$2"
-    local timestamp
-    timestamp=$(date +%Y%m%d_%H%M%S)
-    local backup_file="${BACKUP_DIR}/${backup_name}_${timestamp}.tar.gz"
-
-    # Create backup directory if it doesn't exist
-    verify_directory "$BACKUP_DIR"
-
-    debug_print "Creating backup of ${source_dir} to ${backup_file}"
-
-    if ! tar -czf "$backup_file" -C "$(dirname "$source_dir")" "$(basename "$source_dir")" 2>/dev/null; then
-        error_print "Failed to create backup"
-        return 1
-    fi
-
-    success_print "Backup created: ${backup_file}"
-    return 0
-}
-
-# Function to restore from backup
-# Args: $1 - backup file, $2 - destination directory
-restore_from_backup() {
-    local backup_file="$1"
-    local dest_dir="$2"
-
-    if [ ! -f "$backup_file" ]; then
-        error_print "Backup file not found: ${backup_file}"
-        return 1
-    fi
-
-    debug_print "Restoring backup from ${backup_file} to ${dest_dir}"
-
-    if ! tar -xzf "$backup_file" -C "$dest_dir" 2>/dev/null; then
-        error_print "Failed to restore backup"
-        return 1
-    fi
-
-    success_print "Backup restored to: ${dest_dir}"
-    return 0
-}
-
-# Function to clean old backups
-# Args: $1 - backup directory, $2 - max age in days (optional)
-clean_old_backups() {
-    local backup_dir="${1:-$BACKUP_DIR}"
-    local max_age="${2:-$MAX_BACKUP_AGE_DAYS}"
-
-    debug_print "Cleaning backups older than ${max_age} days in ${backup_dir}"
-
-    if [ -d "$backup_dir" ]; then
-        find "$backup_dir" -name "*.tar.gz" -type f -mtime "+${max_age}" -delete
-        success_print "Old backups cleaned"
-    else
-        debug_print "Backup directory does not exist: ${backup_dir}"
-    fi
-}
-
 # Function to cleanup temporary files
 cleanup_temp_files() {
     local temp_dir
@@ -232,30 +169,6 @@ check_filesystem() {
     return 0
 }
 
-# Function to create temporary file
-# Returns: Path to temporary file
-create_temp_file() {
-    local temp_dir
-    case "$OS" in
-        Windows)
-            temp_dir="$TEMP"
-            ;;
-        *)
-            temp_dir="/tmp"
-            ;;
-    esac
-
-    local temp_file
-    temp_file="${temp_dir}/${TEMP_PREFIX}$(date +%s)_$RANDOM"
-    if ! touch "$temp_file" 2>/dev/null; then
-        error_print "Failed to create temporary file"
-        return 1
-    fi
-
-    echo "$temp_file"
-    return 0
-}
-
 # Execute check if script is sourced
 if [ "${BASH_SOURCE[0]}" -ef "$0" ]; then
     error_print "This script should be sourced, not executed directly."
@@ -263,7 +176,6 @@ if [ "${BASH_SOURCE[0]}" -ef "$0" ]; then
 fi
 
 # Export all functions and variables
-export DEFAULT_PERMISSIONS MIN_DISK_SPACE_MB BACKUP_DIR MAX_BACKUP_AGE_DAYS TEMP_PREFIX
+export DEFAULT_PERMISSIONS MIN_DISK_SPACE_MB TEMP_PREFIX
 export -f check_disk_space verify_directory set_permissions
-export -f create_directory_structure backup_directory restore_from_backup
-export -f clean_old_backups cleanup_temp_files check_filesystem create_temp_file
+export -f create_directory_structure cleanup_temp_files check_filesystem

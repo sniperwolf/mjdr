@@ -212,11 +212,6 @@ cleanup() {
     # Remove temporary files
     cleanup_temp_files
 
-    # Clean old backups if any
-    if [ -d "$BACKUP_DIR" ]; then
-        clean_old_backups "${BACKUP_DIR:-backups}" "${MAX_BACKUP_AGE_DAYS:-30}"
-    fi
-
     # Cleanup Docker resources if in debug mode
     if [ "$DEBUG" = true ]; then
         cleanup_docker
