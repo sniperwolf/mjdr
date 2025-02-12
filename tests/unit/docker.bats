@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "${BATS_HELPER_PATH}/test_helper"
+load "${BATS_HELPER_PATH}/test_helper.bats"
 
 # Setup runs before each test
 setup() {
