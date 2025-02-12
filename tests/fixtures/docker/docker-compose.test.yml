@@ -1,0 +1,12 @@
+services:
+  jd:
+    image: jellyfin/jellyfin:latest
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - ${MEDIA_PATH}:/media
+      - ${CONFIG_PATH}:/config
+    ports:
+      - ${JELLYFIN_PORT}:8096
+    environment:
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_URL}
+    restart: "no"

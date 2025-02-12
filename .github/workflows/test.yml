@@ -1,0 +1,120 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats shellcheck kcov netcat-openbsd
+
+          # Install bats-support and bats-assert
+          git clone https://github.com/bats-core/bats-support.git /tmp/bats-support
+          git clone https://github.com/bats-core/bats-assert.git /tmp/bats-assert
+          sudo mkdir -p /usr/local/lib/bats/
+          sudo mv /tmp/bats-support /usr/local/lib/bats/
+          sudo mv /tmp/bats-assert /usr/local/lib/bats/
+
+          # Set up Docker
+          docker --version
+          docker compose version
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck libs/*.sh *.sh
+
+      - name: Run Unit Tests
+        run: |
+          bats tests/unit/*.bats
+        env:
+          TERM: xterm-256color
+
+      - name: Run Integration Tests
+        run: |
+          bats tests/integration/*.bats
+        env:
+          TERM: xterm-256color
+
+      - name: Run Performance Tests
+        run: |
+          bats tests/performance/*.bats
+        env:
+          TERM: xterm-256color
+
+      - name: Generate Coverage Report
+        run: |
+          kcov --include-pattern=.sh \
+               --exclude-pattern=.bats,.env.example,tests/ \
+               coverage/ \
+               bats tests/unit/*.bats tests/integration/*.bats tests/performance/*.bats
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/*/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: coverage/
+
+  # Job for testing on different OS
+  test-matrix:
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up environment (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y bats shellcheck netcat-openbsd
+          else
+            brew install bats shellcheck netcat
+          fi
+
+      - name: Set up environment (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install bats shellcheck netcat
+        shell: pwsh
+
+      - name: Run Basic Tests
+        run: |
+          bats tests/unit/*.bats
+        env:
+          TERM: xterm-256color
+
+  # Job for creating test summary
+  test-summary:
+    needs: [test, test-matrix]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Test Summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Main tests completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "✅ OS Matrix tests completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY

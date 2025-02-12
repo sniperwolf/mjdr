@@ -1,0 +1,23 @@
+services:
+  jd:
+    image: jellyfin/jellyfin
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - ${MEDIA_PATH}:/media
+      - ${CONFIG_PATH}:/config
+    ports:
+      - ${JELLYFIN_PORT}:8096
+      - ${JELLYFIN_HTTPS_PORT}:8920
+      - ${JELLYFIN_DISCOVERY_PORT}:7359/udp
+      - ${JELLYFIN_DLNA_PORT}:1900/udp
+    environment:
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_URL}
+      - JELLYFIN_HTTPS_ENABLED=${ENABLE_HTTPS}
+      - JELLYFIN_DLNA_ENABLED=${ENABLE_DLNA}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

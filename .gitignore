@@ -1,0 +1,49 @@
+# Environment files
+.env
+*.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
+backups/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Debug files
+debug/
+*.debug
+
+# Test files
+test/
+tests/
+*.test
+
+# Personal configuration files
+config.personal.*
