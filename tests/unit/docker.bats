@@ -2,32 +2,35 @@
 
 load '../helpers/test_helper'
 
-# Setup runs before each test
+# Load test helper
+load "${BATS_HELPER_PATH}/test_helper.bash"
+
 setup() {
-    # Load the docker module
+    source "${BATS_TEST_DIRNAME}/../../libs/colors.sh"
+    source "${BATS_TEST_DIRNAME}/../../libs/os_detect.sh"
     source "${BATS_TEST_DIRNAME}/../../libs/docker.sh"
-    # Create temporary test directory
     TEST_TEMP_DIR="$(mktemp -d)"
 }
 
-# Teardown runs after each test
 teardown() {
     rm -rf "$TEST_TEMP_DIR"
 }
 
-# Test container status detection
 @test "get_container_status should return 'not_found' for non-existent container" {
+    function docker() {
+        return 1
+    }
+    export -f docker
+
     run get_container_status "non_existent_container"
     [ "$status" -eq 0 ]
     [ "$output" = "not_found" ]
 }
 
 @test "get_container_status should return 'running' for running container" {
-    # Create mock Docker ps output
-    echo "test_container" > "$TEST_TEMP_DIR/ps_output"
     function docker() {
-        if [[ "$*" == "ps --format '{{.Names}}'" ]]; then
-            cat "$TEST_TEMP_DIR/ps_output"
+        if [[ "$*" =~ "ps -q -f name=^/test_container$" ]]; then
+            echo "container-id"
             return 0
         fi
     }
@@ -38,7 +41,6 @@ teardown() {
     [ "$output" = "running" ]
 }
 
-# Test version verification
 @test "verify_version should correctly compare versions" {
     run verify_version "20.10.0" "20.10.0"
     [ "$status" -eq 0 ]
@@ -50,7 +52,6 @@ teardown() {
     [ "$status" -eq 1 ]
 }
 
-# Test Docker installation check
 @test "check_docker_installation should fail if Docker is not installed" {
     function command() { return 1; }
     export -f command
@@ -58,4 +59,113 @@ teardown() {
     run check_docker_installation
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Docker is not installed" ]]
+}
+
+@test "check_docker_compose should fail if compose is not available" {
+    function docker() {
+        if [[ "$*" =~ "compose version" ]]; then
+            return 1
+        fi
+    }
+    export -f docker
+
+    run check_docker_compose
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Docker Compose V2 plugin is not available" ]]
+}
+
+@test "validate_compose_file should fail if file not found" {
+    run validate_compose_file "non_existent_file.yaml"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not found" ]]
+}
+
+@test "start_container should handle docker compose errors" {
+    function docker() {
+        if [[ "$*" =~ "compose" ]]; then
+            return 1
+        fi
+    }
+    export -f docker
+
+    run start_container "test.yaml"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to start container" ]]
+}
+
+@test "stop_container should handle docker compose errors" {
+    function docker() {
+        if [[ "$*" =~ "compose" ]]; then
+            return 1
+        fi
+    }
+    export -f docker
+
+    run stop_container "test.yaml"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to stop container" ]]
+}
+
+@test "get_container_logs should return logs" {
+    function docker() {
+        if [[ "$*" =~ "logs" ]]; then
+            echo "test log message"
+        fi
+    }
+    export -f docker
+
+    run get_container_logs "test_container"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "test log message" ]]
+}
+
+@test "check_container_health should handle different states" {
+    local container_name="test_container"
+
+    # Test healthy state
+    function docker() {
+        echo "healthy"
+    }
+    export -f docker
+    run check_container_health "$container_name"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "healthy" ]]
+
+    # Test unhealthy state
+    function docker() {
+        echo "unhealthy"
+    }
+    export -f docker
+    run check_container_health "$container_name"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "unhealthy" ]]
+}
+
+@test "wait_for_container should handle timeout" {
+    function docker() {
+        return 0
+    }
+    export -f docker
+
+    run wait_for_container "test_container" 1
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Timeout" ]]
+}
+
+@test "cleanup_docker should execute cleanup commands" {
+    local commands_executed=""
+
+    function docker() {
+        if [[ "$*" =~ "container prune" ]]; then
+            commands_executed+="container_prune "
+        elif [[ "$*" =~ "network prune" ]]; then
+            commands_executed+="network_prune "
+        fi
+    }
+    export -f docker
+
+    run cleanup_docker
+    [ "$status" -eq 0 ]
+    [[ "$commands_executed" =~ "container_prune" ]]
+    [[ "$commands_executed" =~ "network_prune" ]]
 }

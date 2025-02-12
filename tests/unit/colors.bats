@@ -29,28 +29,28 @@ setup() {
 @test "error_print should output error message" {
     run error_print "error message"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "$$ERROR$$" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "error message" ]]
 }
 
 @test "success_print should output success message" {
     run success_print "success message"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "$$SUCCESS$$" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     [[ "$output" =~ "success message" ]]
 }
 
 @test "warning_print should output warning message" {
     run warning_print "warning message"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "$$WARNING$$" ]]
+    [[ "$output" =~ "[WARNING]" ]]
     [[ "$output" =~ "warning message" ]]
 }
 
 @test "info_print should output info message" {
     run info_print "info message"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "$$INFO$$" ]]
+    [[ "$output" =~ "[INFO]" ]]
     [[ "$output" =~ "info message" ]]
 }
 

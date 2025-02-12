@@ -1,18 +1,13 @@
 #!/usr/bin/env bats
 
-# Determine helper path
-if [[ -z "${BATS_HELPER_PATH:-}" ]]; then
-    BATS_HELPER_PATH="$(cd "$(dirname "$BATS_TEST_FILENAME")/../helpers" && pwd)"
-fi
-
-# Load test helper
-load "${BATS_HELPER_PATH}/test_helper.bash"
+load '../helpers/test_helper'
 
 setup() {
     source "${BATS_TEST_DIRNAME}/../../libs/colors.sh"
     source "${BATS_TEST_DIRNAME}/../../libs/os_detect.sh"
     source "${BATS_TEST_DIRNAME}/../../libs/filesystem.sh"
     TEST_TEMP_DIR="$(mktemp -d)"
+    OS="Linux"  # Set default OS for testing
 }
 
 teardown() {
@@ -20,20 +15,10 @@ teardown() {
 }
 
 @test "check_disk_space should return available space" {
-    case "$OS" in
-        Linux|MacOS)
-            echo "Filesystem     1K-blocks    Used Available Use% Mounted on" > "$TEST_TEMP_DIR/df_output"
-            echo "/dev/sda1      61255492 28841088  29290020  50% /" >> "$TEST_TEMP_DIR/df_output"
-            function df() { cat "$TEST_TEMP_DIR/df_output"; }
-            export -f df
-            ;;
-        Windows)
-            echo "Filesystem     1K-blocks    Used Available Use% Mounted on" > "$TEST_TEMP_DIR/df_output"
-            echo "C:             61255492 28841088  29290020  50% /" >> "$TEST_TEMP_DIR/df_output"
-            function df() { cat "$TEST_TEMP_DIR/df_output"; }
-            export -f df
-            ;;
-    esac
+    echo "Filesystem     1K-blocks    Used Available Use% Mounted on" > "$TEST_TEMP_DIR/df_output"
+    echo "/dev/sda1      61255492 28841088  29290020  50% /" >> "$TEST_TEMP_DIR/df_output"
+    function df() { cat "$TEST_TEMP_DIR/df_output"; }
+    export -f df
 
     run check_disk_space "$TEST_TEMP_DIR"
     [ "$status" -eq 0 ]

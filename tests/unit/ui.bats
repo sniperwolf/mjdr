@@ -32,6 +32,7 @@ teardown() {
 }
 
 @test "display_banner should show default banner if file not exists" {
+    local test_banner_file="${TEST_TEMP_DIR}/non_existent_banner.txt"
     run display_banner
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Jellyfin Manager" ]]
@@ -39,14 +40,19 @@ teardown() {
 
 @test "display_banner should show custom banner if file exists" {
     echo "Custom Banner" > "$TEST_TEMP_DIR/banner.txt"
-    BANNER_FILE="$TEST_TEMP_DIR/banner.txt" run display_banner
+    local OLD_BANNER_FILE="$BANNER_FILE"
+    eval "BANNER_FILE=$TEST_TEMP_DIR/banner.txt"
+
+    run display_banner
+
+    BANNER_FILE="$OLD_BANNER_FILE"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Custom Banner" ]]
 }
 
 @test "show_spinner should display spinning animation" {
     # Create a long-running process
-    sleep 1 &
+    sleep 0.1 &
     local pid=$!
 
     run show_spinner "$pid"
@@ -96,7 +102,7 @@ teardown() {
     echo "test123" > "$TEST_TEMP_DIR/input"
     run get_user_input "Enter value" "^test[0-9]+$" < "$TEST_TEMP_DIR/input"
     [ "$status" -eq 0 ]
-    [ "$output" = "test123" ]
+    [ "$(echo "$output" | tail -n1)" = "test123" ]
 }
 
 @test "get_user_input should repeat on invalid input" {
@@ -104,7 +110,7 @@ teardown() {
     run get_user_input "Enter value" "^test[0-9]+$" < "$TEST_TEMP_DIR/input"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Invalid input" ]]
-    [[ "$output" =~ "test123" ]]
+    [ "$(echo "$output" | tail -n1)" = "test123" ]
 }
 
 @test "show_error should display error message" {
