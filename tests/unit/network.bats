@@ -97,8 +97,10 @@ teardown() {
 @test "is_interface_active should detect active interfaces" {
     function ip() {
         if [[ "$*" =~ "link show" ]]; then
-            echo "UP"
+            echo "state UP"
+            return 0
         fi
+        return 1
     }
     export -f ip
 

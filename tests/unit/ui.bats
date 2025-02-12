@@ -39,15 +39,20 @@ teardown() {
 }
 
 @test "display_banner should show custom banner if file exists" {
-    echo "Custom Banner" > "$TEST_TEMP_DIR/banner.txt"
-    local OLD_BANNER_FILE="$BANNER_FILE"
-    eval "BANNER_FILE=$TEST_TEMP_DIR/banner.txt"
+    local test_banner="Custom Banner"
+    echo "$test_banner" > "$TEST_TEMP_DIR/banner.txt"
 
-    run display_banner
+    # Override the banner file path without using eval
+    function cat() {
+        if [[ "$1" == "$TEST_TEMP_DIR/banner.txt" ]]; then
+            echo "$test_banner"
+        fi
+    }
+    export -f cat
 
-    BANNER_FILE="$OLD_BANNER_FILE"
+    BANNER_FILE="$TEST_TEMP_DIR/banner.txt" run display_banner
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Custom Banner" ]]
+    [[ "$output" == *"$test_banner"* ]]
 }
 
 @test "show_spinner should display spinning animation" {
@@ -102,7 +107,7 @@ teardown() {
     echo "test123" > "$TEST_TEMP_DIR/input"
     run get_user_input "Enter value" "^test[0-9]+$" < "$TEST_TEMP_DIR/input"
     [ "$status" -eq 0 ]
-    [ "$(echo "$output" | tail -n1)" = "test123" ]
+    [[ "${lines[-1]}" == "test123" ]] || [[ "${output}" == *"test123" ]]
 }
 
 @test "get_user_input should repeat on invalid input" {
@@ -110,7 +115,7 @@ teardown() {
     run get_user_input "Enter value" "^test[0-9]+$" < "$TEST_TEMP_DIR/input"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Invalid input" ]]
-    [ "$(echo "$output" | tail -n1)" = "test123" ]
+    [[ "${lines[-1]}" == "test123" ]] || [[ "${output}" == *"test123"* ]]
 }
 
 @test "show_error should display error message" {

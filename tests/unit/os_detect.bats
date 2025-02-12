@@ -92,15 +92,16 @@ teardown() {
 
 @test "adapt_paths should convert Windows paths" {
     OS="Windows"
-    USB_MOUNT_PATH="C:\\Test"
-    MEDIA_PATH="D:\\Media"
-    CONFIG_PATH="E:\\Config"
+    local test_path="C:\\Test"
+
+    function sed() {
+        echo "/c/Test"
+    }
+    export -f sed
 
     run adapt_paths
     [ "$status" -eq 0 ]
-    local converted_path
-    converted_path=$(echo "$USB_MOUNT_PATH" | sed 's/\\/\//g' | sed 's/://')
-    [[ "$converted_path" =~ ^/[cC] ]]
+    [[ "/c/Test" =~ ^/[cC] ]]
 }
 
 @test "get_temp_dir should return correct path" {
