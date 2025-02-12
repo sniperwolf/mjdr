@@ -1,6 +1,10 @@
 #!/usr/bin/env bats
 
-load "${BATS_HELPER_PATH}/test_helper.bash"
+# Determine helper path
+if [[ -z "${BATS_HELPER_PATH:-}" ]]; then
+    # When running locally
+    BATS_HELPER_PATH="$(cd "$(dirname "$BATS_TEST_FILENAME")/../helpers" && pwd)"
+fi
 
 # Setup test environment
 setup() {
