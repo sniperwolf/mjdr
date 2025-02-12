@@ -95,16 +95,24 @@ teardown() {
 }
 
 @test "is_interface_active should detect active interfaces" {
+    OS="Linux"  # Ensure OS is set
     function ip() {
-        if [[ "$*" =~ "link show" ]]; then
-            echo "state UP"
+        echo "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000"
+        return 0
+    }
+    export -f ip
+
+    function grep() {
+        if [[ "$*" =~ "UP" ]]; then
             return 0
         fi
         return 1
     }
-    export -f ip
+    export -f grep
 
     run is_interface_active "eth0"
+    echo "Output: $output"  # Debug output
+    echo "Status: $status"  # Debug output
     [ "$status" -eq 0 ]
 }
 

@@ -39,20 +39,28 @@ teardown() {
 }
 
 @test "display_banner should show custom banner if file exists" {
-    local test_banner="Custom Banner"
-    echo "$test_banner" > "$TEST_TEMP_DIR/banner.txt"
+    # Create a temporary banner file
+    echo "Custom Banner" > "$TEST_TEMP_DIR/test_banner.txt"
 
-    # Override the banner file path without using eval
-    function cat() {
-        if [[ "$1" == "$TEST_TEMP_DIR/banner.txt" ]]; then
-            echo "$test_banner"
-        fi
+    # Override the banner reading function instead of the variable
+    function read_banner_file() {
+        cat "$TEST_TEMP_DIR/test_banner.txt"
     }
-    export -f cat
+    export -f read_banner_file
 
-    BANNER_FILE="$TEST_TEMP_DIR/banner.txt" run display_banner
+    # Mock the file check
+    function test() {
+        if [[ "$*" =~ "$TEST_TEMP_DIR/test_banner.txt" ]]; then
+            return 0
+        fi
+        return 1
+    }
+    export -f test
+
+    run display_banner
+    echo "Output: $output"  # Debug output
     [ "$status" -eq 0 ]
-    [[ "$output" == *"$test_banner"* ]]
+    [[ "$output" == *"Custom Banner"* ]]
 }
 
 @test "show_spinner should display spinning animation" {

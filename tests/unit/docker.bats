@@ -28,16 +28,23 @@ teardown() {
 }
 
 @test "get_container_status should return 'running' for running container" {
+    CONTAINER_STATUS=""  # Reset the status
     function docker() {
-        if [[ "$*" =~ "ps -q -f" ]]; then
-            echo "container-id"
-            return 0
-        fi
+        case "$1" in
+            "ps")
+                if [[ "$*" =~ "-q -f name=^/test_container$" ]]; then
+                    echo "123456789"  # Mock container ID
+                    return 0
+                fi
+                ;;
+        esac
         return 1
     }
     export -f docker
 
     run get_container_status "test_container"
+    echo "Output: $output"  # Debug output
+    echo "Status: $status"  # Debug output
     [ "$status" -eq 0 ]
     [ "$output" = "running" ]
 }
@@ -154,26 +161,24 @@ teardown() {
 }
 
 @test "cleanup_docker should execute cleanup commands" {
-    local commands_executed=""
+    local -a executed_commands=()
 
     function docker() {
         case "$*" in
-            *"container prune"*)
-                commands_executed+="container_prune "
-                return 0
+            *"container prune -f"*)
+                executed_commands+=("container_prune")
                 ;;
-            *"network prune"*)
-                commands_executed+="network_prune "
-                return 0
-                ;;
-            *)
-                return 0
+            *"network prune -f"*)
+                executed_commands+=("network_prune")
                 ;;
         esac
+        return 0
     }
     export -f docker
 
+    DEBUG=true  # Enable debug mode for more output
     run cleanup_docker
+    echo "Executed commands: ${executed_commands[*]}"  # Debug output
     [ "$status" -eq 0 ]
-    [[ "$commands_executed" = *"container_prune"* ]]
+    [[ " ${executed_commands[*]} " == *" container_prune "* ]]
 }
