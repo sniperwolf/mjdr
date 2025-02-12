@@ -6,6 +6,8 @@ if [[ -z "${BATS_HELPER_PATH:-}" ]]; then
     BATS_HELPER_PATH="$(cd "$(dirname "$BATS_TEST_FILENAME")/../helpers" && pwd)"
 fi
 
+load "${BATS_HELPER_PATH}/test_helper.bash"
+
 setup() {
     source "${BATS_TEST_DIRNAME}/../../libs/colors.sh"
     source "${BATS_TEST_DIRNAME}/../../libs/os_detect.sh"

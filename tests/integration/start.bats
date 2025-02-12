@@ -6,6 +6,8 @@ if [[ -z "${BATS_HELPER_PATH:-}" ]]; then
     BATS_HELPER_PATH="$(cd "$(dirname "$BATS_TEST_FILENAME")/../helpers" && pwd)"
 fi
 
+load "${BATS_HELPER_PATH}/test_helper.bash"
+
 # Setup test environment
 setup() {
     TEST_ROOT="${BATS_TEST_DIRNAME}/.."
