@@ -86,8 +86,25 @@ jobs:
       - name: Set up environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats shellcheck kcov netcat-openbsd
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y bats shellcheck netcat-openbsd \
+            binutils-dev libcurl4-openssl-dev zlib1g-dev libdw-dev libiberty-dev build-essential
 
+          # Install kcov from source
+          wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
+          tar xzf master.tar.gz
+          cd kcov-master
+          mkdir build
+          cd build
+          cmake ..
+          make
+          sudo make install
+          cd ../..
+          rm -rf kcov-master master.tar.gz
+
+          # Install BATS dependencies
           git clone https://github.com/bats-core/bats-support.git /tmp/bats-support
           git clone https://github.com/bats-core/bats-assert.git /tmp/bats-assert
           sudo mkdir -p /usr/local/lib/bats/
