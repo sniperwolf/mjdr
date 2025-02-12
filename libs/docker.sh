@@ -98,21 +98,20 @@ validate_compose_file() {
 # Returns: Container status (running, stopped, not_found)
 get_container_status() {
     local container_name="$1"
-    local status
+    local status="not_found"
 
-    # Check if container exists and is running
+    # Check if container is running
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
         status="running"
     # Check if container exists but is stopped
     elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
         status="stopped"
-    else
-        status="not_found"
     fi
 
+    debug_print "Container status for ${container_name}: ${status}"
     CONTAINER_STATUS="$status"
-    debug_print "Container ${container_name} status: ${status}"
     echo "$status"
+    return 0
 }
 
 # Function to start container

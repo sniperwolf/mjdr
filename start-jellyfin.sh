@@ -22,6 +22,10 @@ source "${SCRIPT_DIR}/libs/filesystem.sh"
 # shellcheck source=./libs/ui.sh
 source "${SCRIPT_DIR}/libs/ui.sh"
 
+if [ -z "${CONTAINER_NAME:-}" ]; then
+    CONTAINER_NAME="jd"  # Default value
+fi
+
 # Default configuration file paths
 readonly ENV_FILE="${SCRIPT_DIR}/.env"
 readonly COMPOSE_FILE="${SCRIPT_DIR}/jd.yaml"
@@ -132,6 +136,7 @@ manage_container() {
     # Get current container status
     local status
     status=$(get_container_status "$CONTAINER_NAME")
+    debug_print "Current container status: $status"
 
     case "$status" in
         running)
@@ -156,7 +161,7 @@ manage_container() {
                 return 1
             fi
             ;;
-        not_found)
+        not_found|*)
             info_print "Starting new container..."
             if ! start_container "$COMPOSE_FILE"; then
                 return 1
@@ -207,11 +212,6 @@ cleanup() {
 
     # Remove temporary files
     cleanup_temp_files
-
-    # Clean old backups if any
-    if [ -d "$BACKUP_DIR" ]; then
-        clean_old_backups
-    fi
 
     # Cleanup Docker resources if in debug mode
     if [ "$DEBUG" = true ]; then

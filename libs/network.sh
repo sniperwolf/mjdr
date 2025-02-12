@@ -193,7 +193,7 @@ is_interface_active() {
 
     case "$OS" in
         Linux)
-            if grep -q "UP" "/sys/class/net/${interface}/operstate" 2>/dev/null; then
+            if ip link show "$interface" 2>/dev/null | grep -q "UP"; then
                 return 0
             fi
             ;;

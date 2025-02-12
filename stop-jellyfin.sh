@@ -22,6 +22,9 @@ source "${SCRIPT_DIR}/libs/ui.sh"
 readonly ENV_FILE="${SCRIPT_DIR}/.env"
 readonly COMPOSE_FILE="${SCRIPT_DIR}/jd.yaml"
 
+# Default container name if not set in environment
+: "${CONTAINER_NAME:=jd}"
+
 # Function to load environment variables
 load_configuration() {
     if [ ! -f "$ENV_FILE" ]; then

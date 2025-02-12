@@ -29,29 +29,29 @@ setup() {
 @test "error_print should output error message" {
     run error_print "error message"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "error message" ]]
-    [[ "$output" =~ "$$ERROR$$" ]]
 }
 
 @test "success_print should output success message" {
     run success_print "success message"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "[SUCCESS]" ]]
     [[ "$output" =~ "success message" ]]
-    [[ "$output" =~ "$$SUCCESS$$" ]]
 }
 
 @test "warning_print should output warning message" {
     run warning_print "warning message"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "[WARNING]" ]]
     [[ "$output" =~ "warning message" ]]
-    [[ "$output" =~ "$$WARNING$$" ]]
 }
 
 @test "info_print should output info message" {
     run info_print "info message"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "[INFO]" ]]
     [[ "$output" =~ "info message" ]]
-    [[ "$output" =~ "$$INFO$$" ]]
 }
 
 @test "print_section_header should format correctly" {
@@ -79,9 +79,16 @@ setup() {
 }
 
 @test "parse_arguments should handle debug flag" {
+    OLD_DEBUG="$DEBUG"
+    DEBUG=false
+
     run parse_arguments "--debug"
+    echo "Output: $output"
+    echo "Status: $status"
     [ "$status" -eq 0 ]
-    [ "$DEBUG" = true ]
+    [[ "$output" =~ "Debug mode enabled" ]]
+
+    DEBUG="$OLD_DEBUG"
 }
 
 @test "show_help should display help message" {

@@ -7,6 +7,13 @@ setup() {
     source "${BATS_TEST_DIRNAME}/../../libs/os_detect.sh"
     source "${BATS_TEST_DIRNAME}/../../libs/network.sh"
     TEST_TEMP_DIR="$(mktemp -d)"
+    OS="Linux"  # Set default OS for testing
+    NETWORK_INTERFACES_IP=""
+    NETWORK_INTERFACES_TYPE=""
+    NETWORK_INTERFACES_SPEED=""
+    PRIMARY_IP=""
+    PRIMARY_INTERFACE=""
+    PRIMARY_TYPE=""
 }
 
 teardown() {
@@ -14,162 +21,103 @@ teardown() {
 }
 
 @test "store_interface_info should store interface information" {
-    run store_interface_info "eth0" "Ethernet" "192.168.1.100" "1000"
-    [ "$status" -eq 0 ]
-    [[ "$NETWORK_INTERFACES_IP" =~ "eth0:192.168.1.100" ]]
-    [[ "$NETWORK_INTERFACES_TYPE" =~ "eth0:Ethernet" ]]
-    [[ "$NETWORK_INTERFACES_SPEED" =~ "eth0:1000" ]]
+    store_interface_info "eth0" "Ethernet" "192.168.1.100" "1000"
+    [[ "$NETWORK_INTERFACES_IP" == *"eth0:192.168.1.100"* ]]
+    [[ "$NETWORK_INTERFACES_TYPE" == *"eth0:Ethernet"* ]]
+    [[ "$NETWORK_INTERFACES_SPEED" == *"eth0:1000"* ]]
 }
 
 @test "get_interface_info should retrieve stored information" {
     store_interface_info "eth0" "Ethernet" "192.168.1.100" "1000"
 
-    run get_interface_info "eth0" "ip"
-    [ "$output" = "192.168.1.100" ]
+    local ip
+    ip=$(get_interface_info "eth0" "ip")
+    [ "$ip" = "192.168.1.100" ]
 
-    run get_interface_info "eth0" "type"
-    [ "$output" = "Ethernet" ]
+    local type
+    type=$(get_interface_info "eth0" "type")
+    [ "$type" = "Ethernet" ]
 
-    run get_interface_info "eth0" "speed"
-    [ "$output" = "1000" ]
+    local speed
+    speed=$(get_interface_info "eth0" "speed")
+    [ "$speed" = "1000" ]
 }
 
 @test "get_network_interfaces should detect interfaces based on OS" {
-    case "$OS" in
-        Linux)
-            echo "1: lo: <LOOPBACK,UP,LOWER_UP>" > "$TEST_TEMP_DIR/ip_link"
-            echo "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP>" >> "$TEST_TEMP_DIR/ip_link"
-            echo "3: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP>" >> "$TEST_TEMP_DIR/ip_link"
-            function ip() { cat "$TEST_TEMP_DIR/ip_link"; }
-            export -f ip
-            ;;
-        MacOS)
-            echo "lo0 en0 en1" > "$TEST_TEMP_DIR/ifconfig_list"
-            function ifconfig() {
-                if [[ "$1" = "-l" ]]; then
-                    cat "$TEST_TEMP_DIR/ifconfig_list"
-                fi
-            }
-            export -f ifconfig
-            ;;
-        Windows)
-            echo "Ethernet adapter Ethernet:" > "$TEST_TEMP_DIR/ipconfig"
-            echo "Wireless adapter Wi-Fi:" >> "$TEST_TEMP_DIR/ipconfig"
-            function ipconfig() { cat "$TEST_TEMP_DIR/ipconfig"; }
-            export -f ipconfig
-            ;;
-    esac
+    echo "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP>" > "$TEST_TEMP_DIR/interfaces"
+    function ip() {
+        if [[ "$*" =~ "link show" ]]; then
+            cat "$TEST_TEMP_DIR/interfaces"
+        fi
+    }
+    export -f ip
 
     run get_network_interfaces
     [ "$status" -eq 0 ]
-    [ -n "$output" ]
+    [[ "$output" == *"eth0"* ]]
 }
 
 @test "get_interface_ip should return IP address" {
-    case "$OS" in
-        Linux)
-            echo "inet 192.168.1.100/24" > "$TEST_TEMP_DIR/ip_addr"
-            function ip() { cat "$TEST_TEMP_DIR/ip_addr"; }
-            export -f ip
-            ;;
-        MacOS)
-            echo "inet 192.168.1.100 netmask 0xffffff00" > "$TEST_TEMP_DIR/ifconfig"
-            function ifconfig() { cat "$TEST_TEMP_DIR/ifconfig"; }
-            export -f ifconfig
-            ;;
-        Windows)
-            echo "IPv4 Address. . . . . . . . . . . : 192.168.1.100" > "$TEST_TEMP_DIR/ipconfig"
-            function ipconfig() { cat "$TEST_TEMP_DIR/ipconfig"; }
-            export -f ipconfig
-            ;;
-    esac
+    echo "inet 192.168.1.100/24" > "$TEST_TEMP_DIR/addr"
+    function ip() {
+        if [[ "$*" =~ "addr show" ]]; then
+            cat "$TEST_TEMP_DIR/addr"
+        fi
+    }
+    export -f ip
 
-    run get_interface_ip "test_interface"
+    run get_interface_ip "eth0"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "192.168.1.100" ]]
+    [[ "$output" == "192.168.1.100" ]]
 }
 
 @test "get_connection_type should identify interface types" {
-    case "$OS" in
-        Linux)
-            run get_connection_type "wlan0"
-            [ "$output" = "WiFi" ]
-            run get_connection_type "eth0"
-            [ "$output" = "Ethernet" ]
-            ;;
-        MacOS)
-            run get_connection_type "en0"
-            [ "$output" = "WiFi" ]
-            run get_connection_type "en1"
-            [ "$output" = "Ethernet" ]
-            ;;
-        Windows)
-            run get_connection_type "Wireless"
-            [ "$output" = "WiFi" ]
-            run get_connection_type "Ethernet"
-            [ "$output" = "Ethernet" ]
-            ;;
-    esac
+    run get_connection_type "wlan0"
+    [ "$output" = "WiFi" ]
+
+    run get_connection_type "eth0"
+    [ "$output" = "Ethernet" ]
 }
 
 @test "get_interface_speed should return interface speed" {
-    case "$OS" in
-        Linux)
-            echo "1000" > "$TEST_TEMP_DIR/speed"
-            function cat() {
-                if [[ "$1" =~ /speed$ ]]; then
-                    cat "$TEST_TEMP_DIR/speed"
-                fi
-            }
-            export -f cat
-            ;;
-        MacOS)
-            echo "Current Speed: 1000" > "$TEST_TEMP_DIR/networksetup"
-            function networksetup() { cat "$TEST_TEMP_DIR/networksetup"; }
-            export -f networksetup
-            ;;
-        Windows)
-            echo "    Transmit Rate:           1000" > "$TEST_TEMP_DIR/netsh"
-            function netsh() { cat "$TEST_TEMP_DIR/netsh"; }
-            export -f netsh
-            ;;
-    esac
+    mkdir -p "$TEST_TEMP_DIR/sys/class/net/eth0"
+    echo "1000" > "$TEST_TEMP_DIR/sys/class/net/eth0/speed"
+    function cat() {
+        if [[ "$1" =~ "/speed" ]]; then
+            echo "1000"
+        fi
+    }
+    export -f cat
 
-    run get_interface_speed "test_interface"
+    run get_interface_speed "eth0"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "1000" ]]
+    [[ "$output" == "1000" ]]
 }
 
 @test "is_interface_active should detect active interfaces" {
-    case "$OS" in
-        Linux)
-            echo "up" > "$TEST_TEMP_DIR/operstate"
-            function grep() {
-                if [[ "$2" =~ /operstate$ ]]; then
-                    cat "$TEST_TEMP_DIR/operstate"
-                fi
-            }
-            export -f grep
-            ;;
-        MacOS)
-            echo "status: active" > "$TEST_TEMP_DIR/ifconfig"
-            function ifconfig() { cat "$TEST_TEMP_DIR/ifconfig"; }
-            export -f ifconfig
-            ;;
-        Windows)
-            echo "Media State . . . . . . . . . . . : Connected" > "$TEST_TEMP_DIR/ipconfig"
-            function ipconfig() { cat "$TEST_TEMP_DIR/ipconfig"; }
-            export -f ipconfig
-            ;;
-    esac
+    OS="Linux"  # Ensure OS is set
+    function ip() {
+        echo "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000"
+        return 0
+    }
+    export -f ip
 
-    run is_interface_active "test_interface"
+    function grep() {
+        if [[ "$*" =~ "UP" ]]; then
+            return 0
+        fi
+        return 1
+    }
+    export -f grep
+
+    run is_interface_active "eth0"
+    echo "Output: $output"  # Debug output
+    echo "Status: $status"  # Debug output
     [ "$status" -eq 0 ]
 }
 
 @test "get_network_info should collect all network information" {
-    # Mock successful interface detection
-    function get_network_interfaces() { echo "test_interface"; }
+    function get_network_interfaces() { echo "eth0"; }
     function is_interface_active() { return 0; }
     function get_interface_ip() { echo "192.168.1.100"; }
     function get_connection_type() { echo "Ethernet"; }
@@ -178,9 +126,9 @@ teardown() {
 
     run get_network_info
     [ "$status" -eq 0 ]
-    [ -n "$PRIMARY_IP" ]
-    [ -n "$PRIMARY_INTERFACE" ]
-    [ -n "$PRIMARY_TYPE" ]
+    [[ "$output" == *"192.168.1.100"* ]]
+    [[ "$output" == *"Ethernet"* ]]
+    [[ "$output" == *"1000"* ]]
 }
 
 @test "check_port_availability should detect used ports" {

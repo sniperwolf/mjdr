@@ -1,0 +1,11 @@
+# Allow sourcing from non-constant source
+disable=SC1090
+
+# Allow following non-constant source
+disable=SC1091
+
+# Suggest explicitly using -n in [ -n ... ]
+enable=SC2236
+
+# Suggest quoting variables when used in printf
+enable=SC2059

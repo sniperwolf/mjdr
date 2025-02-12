@@ -31,12 +31,16 @@ clear_screen() {
     esac
 }
 
+# Function to read banner file - can be overridden in tests
+read_banner_file() {
+    local file="$1"
+    cat "$file"
+}
+
 # Function to display banner
 display_banner() {
-    if [ -f "$BANNER_FILE" ]; then
-        while IFS= read -r line; do
-            echo "$line"
-        done < "$BANNER_FILE"
+    if [ -f "${BANNER_FILE:-}" ]; then
+        read_banner_file "$BANNER_FILE"
     else
         echo -e "${BLUE}"
         echo "=============================="
