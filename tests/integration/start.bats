@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-load "${BATS_TEST_DIRNAME}/../helpers/test_helper.bash"
+load "${BATS_HELPER_PATH}/test_helper.bash"
 
 # Setup test environment
 setup() {
