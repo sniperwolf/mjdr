@@ -136,6 +136,7 @@ manage_container() {
     # Get current container status
     local status
     status=$(get_container_status "$CONTAINER_NAME")
+    debug_print "Current container status: $status"
 
     case "$status" in
         running)
@@ -160,7 +161,7 @@ manage_container() {
                 return 1
             fi
             ;;
-        not_found)
+        not_found|*)
             info_print "Starting new container..."
             if ! start_container "$COMPOSE_FILE"; then
                 return 1

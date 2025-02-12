@@ -100,12 +100,16 @@ get_container_status() {
     local container_name="$1"
     local status="not_found"
 
-    if docker ps -q -f "name=^/${container_name}$" >/dev/null 2>&1; then
+    # Check if container is running
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
         status="running"
-    elif docker ps -aq -f "name=^/${container_name}$" >/dev/null 2>&1; then
+    # Check if container exists but is stopped
+    elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"; then
         status="stopped"
     fi
 
+    debug_print "Container status for ${container_name}: ${status}"
+    CONTAINER_STATUS="$status"
     echo "$status"
     return 0
 }
