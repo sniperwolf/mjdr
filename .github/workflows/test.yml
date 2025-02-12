@@ -118,7 +118,7 @@ jobs:
         id: shellcheck
         run: |
           mkdir -p reports/shellcheck
-          shellcheck -f json libs/*.sh *.sh > reports/shellcheck/report.json || true
+          shellcheck -x -f json libs/*.sh *.sh > reports/shellcheck/report.json || true
 
           if [ -s reports/shellcheck/report.json ]; then
             echo "Found ShellCheck issues:" >> reports/shellcheck/report.txt

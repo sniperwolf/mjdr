@@ -22,6 +22,10 @@ source "${SCRIPT_DIR}/libs/filesystem.sh"
 # shellcheck source=./libs/ui.sh
 source "${SCRIPT_DIR}/libs/ui.sh"
 
+if [ -z "${CONTAINER_NAME:-}" ]; then
+    CONTAINER_NAME="jd"  # Default value
+fi
+
 # Default configuration file paths
 readonly ENV_FILE="${SCRIPT_DIR}/.env"
 readonly COMPOSE_FILE="${SCRIPT_DIR}/jd.yaml"
@@ -210,7 +214,7 @@ cleanup() {
 
     # Clean old backups if any
     if [ -d "$BACKUP_DIR" ]; then
-        clean_old_backups
+        clean_old_backups "${BACKUP_DIR:-backups}" "${MAX_BACKUP_AGE_DAYS:-30}"
     fi
 
     # Cleanup Docker resources if in debug mode

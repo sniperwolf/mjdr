@@ -68,7 +68,7 @@ clean: ## Clean temporary files and test artifacts
 
 lint: ## Run shellcheck on all shell scripts
 	@echo "Running shellcheck..."
-	@shellcheck $(SHELLCHECK_OPTS) $(SHELL_FILES)
+	@shellcheck -x $(SHELLCHECK_OPTS) $(SHELL_FILES)
 
 test-unit: ## Run unit tests
 	@echo "Running unit tests..."
