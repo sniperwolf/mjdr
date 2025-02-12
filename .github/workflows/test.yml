@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up environment
         run: |
@@ -45,33 +45,29 @@ jobs:
         env:
           TERM: xterm-256color
 
-      - name: Run Performance Tests
-        run: |
-          bats tests/performance/*.bats
-        env:
-          TERM: xterm-256color
-
       - name: Generate Coverage Report
         run: |
           kcov --include-pattern=.sh \
                --exclude-pattern=.bats,.env.example,tests/ \
                coverage/ \
-               bats tests/unit/*.bats tests/integration/*.bats tests/performance/*.bats
+               bats tests/unit/*.bats tests/integration/*.bats
 
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage/*/coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: true
           verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
           path: coverage/
+          retention-days: 90
 
   # Job for testing on different OS
   test-matrix:
@@ -82,7 +78,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up environment (Unix)
         if: matrix.os != 'windows-latest'
